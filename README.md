@@ -1,5 +1,9 @@
 # Octopus Deploy CLI
 
+[![Tests](https://github.com/seanson/octo-py/actions/workflows/test.yml/badge.svg)](https://github.com/seanson/octo-py/actions/workflows/test.yml)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 A Python command-line interface for interacting with Octopus Deploy servers. This tool provides commands for managing spaces, projects, releases, and deployments.
 
 ## Installation
@@ -299,13 +303,25 @@ make test-specific TEST=TestOctopusClientInitialization
 make test-specific TEST=test_init_with_valid_config
 ```
 
-5. Run all checks (format, lint, test):
+5. Run linting checks with ruff:
+
+```bash
+make lint
+```
+
+6. Format code with ruff:
+
+```bash
+make format
+```
+
+7. Run all checks (format, lint, test):
 
 ```bash
 make check
 ```
 
-6. View all available make targets:
+8. View all available make targets:
 
 ```bash
 make help

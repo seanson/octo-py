@@ -32,17 +32,17 @@ test-specific: ## Run specific test (use TEST=TestClassName or TEST=test_functio
 	poetry run pytest -v -k "$(TEST)"
 
 # Code quality targets
-lint: ## Run linting checks
-	poetry run python -m flake8 src tests
-	poetry run python -m mypy src
+lint: ## Run linting checks with ruff
+	poetry run ruff check src tests
 
-format: ## Format code with black and isort
-	poetry run black src tests
-	poetry run isort src tests
+format: ## Format code with ruff
+	poetry run ruff format src tests
 
 format-check: ## Check code formatting without making changes
-	poetry run black --check src tests
-	poetry run isort --check-only src tests
+	poetry run ruff format --check src tests
+
+lint-fix: ## Auto-fix linting issues with ruff
+	poetry run ruff check --fix src tests
 
 # Cleaning targets
 clean: ## Clean up cache and build files
