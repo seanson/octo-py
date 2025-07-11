@@ -1,10 +1,8 @@
 """Shared pytest fixtures and configuration."""
-import json
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
-import sys
 import os
+import sys
+
+import pytest
 
 # Add src directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))

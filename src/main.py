@@ -1,7 +1,8 @@
 import click
-from octopus import OctopusClient
-from tqdm import tqdm
 from tabulate import tabulate
+from tqdm import tqdm
+
+from octopus import OctopusClient
 
 
 @click.group()
@@ -158,19 +159,19 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
 
         # Get all projects in the space
         all_projects = client.get_projects(space_obj["Id"])
-        
+
         # Apply filtering and exclusion
         projects = all_projects
-        
+
         # Apply filter if provided
         if filter:
             projects = [p for p in projects if filter.lower() in p.get("Name", "").lower()]
-        
+
         # Apply exclusion if provided
         if exclude:
             for exclude_pattern in exclude:
                 projects = [p for p in projects if exclude_pattern.lower() not in p.get("Name", "").lower()]
-        
+
         # Report filtering results
         if filter and exclude:
             exclude_list = "', '".join(exclude)
@@ -196,17 +197,17 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
             ctx.exit(1)
 
         results = []
-        
+
         with tqdm(projects, desc="Processing projects", unit="project") as pbar:
             for project in pbar:
                 project_name = project.get("Name", "")
                 pbar.set_description(f"Processing {project_name}")
-                
+
                 # Get the latest release from source environment
                 source_release = client.get_latest_release_in_environment(
                     space_obj["Id"], project["Id"], source_environment
                 )
-                
+
                 if not source_release:
                     results.append({
                         "Project": project_name,
@@ -217,14 +218,14 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
                     continue
 
                 source_version = source_release['Version']
-                
+
                 # Get the latest release from target environment
                 target_release = client.get_latest_release_in_environment(
                     space_obj["Id"], project["Id"], target_environment
                 )
-                
+
                 target_version = target_release['Version'] if target_release else "N/A"
-                
+
                 # Check if versions match
                 if target_release and source_version == target_version:
                     results.append({
@@ -234,7 +235,7 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
                         "Action": "Already deployed"
                     })
                     continue
-                
+
                 if dry_run:
                     results.append({
                         "Project": project_name,
@@ -258,20 +259,20 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
                             "Project": project_name,
                             f"{source_environment.title()} Version": source_version,
                             f"{target_environment.title()} Version": target_version,
-                            "Action": f"Failed: {str(e)}"
+                            "Action": f"Failed: {e!s}"
                         })
 
         # Print results table
         if results:
             click.echo("\n" + tabulate(results, headers="keys", tablefmt="grid"))
-            
+
             # Summary statistics
             deployed_count = len([r for r in results if r["Action"] == "Deployed"])
             would_deploy_count = len([r for r in results if r["Action"] == "Would deploy"])
             failed_count = len([r for r in results if "failed" in r["Action"].lower()])
             already_deployed_count = len([r for r in results if r["Action"] == "Already deployed"])
             skipped_count = len([r for r in results if r["Action"] == "Skipped"])
-            
+
             if dry_run:
                 click.echo(f"\n📊 Summary: {would_deploy_count} would be deployed, {already_deployed_count} already deployed, {skipped_count} skipped, {failed_count} failed")
             else:
