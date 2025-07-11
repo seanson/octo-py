@@ -65,17 +65,13 @@ def releases(ctx, space_id, project_id):
 @cli.command()
 @click.argument("space_id")
 @click.argument("project_id")
-@click.option(
-    "--environment", default="staging", help="Environment name (default: staging)"
-)
+@click.option("--environment", default="staging", help="Environment name (default: staging)")
 @click.pass_context
 def latest_release(ctx, space_id, project_id, environment):
     """Get the latest release deployed to an environment"""
     client = ctx.obj["client"]
     try:
-        release = client.get_latest_release_in_environment(
-            space_id, project_id, environment
-        )
+        release = client.get_latest_release_in_environment(space_id, project_id, environment)
         if release:
             click.echo(f"{release['Id']}: {release['Version']}")
         else:
@@ -126,12 +122,8 @@ def promote(ctx, space_name, project_name):
             ctx.exit(1)
 
         # Deploy the staging release to QA
-        click.echo(
-            f"Promoting release {staging_release['Version']} from staging to QA..."
-        )
-        deployment = client.deploy_release(
-            space["Id"], staging_release["Id"], qa_env["Id"]
-        )
+        click.echo(f"Promoting release {staging_release['Version']} from staging to QA...")
+        deployment = client.deploy_release(space["Id"], staging_release["Id"], qa_env["Id"])
         click.echo(f"Deployment created: {deployment['Id']}")
 
     except Exception as e:
@@ -144,8 +136,12 @@ def promote(ctx, space_name, project_name):
 @click.argument("target_environment")
 @click.option("--space", required=True, help="Space name")
 @click.option("--filter", help="Filter projects by name (case-insensitive substring match)")
-@click.option("--exclude", multiple=True, help="Exclude projects by name (case-insensitive substring match)")
-@click.option("--dry-run", is_flag=True, help="Show what would be deployed without actually deploying")
+@click.option(
+    "--exclude", multiple=True, help="Exclude projects by name (case-insensitive substring match)"
+)
+@click.option(
+    "--dry-run", is_flag=True, help="Show what would be deployed without actually deploying"
+)
 @click.pass_context
 def deploy_all(ctx, source_environment, target_environment, space, filter, exclude, dry_run):
     """Deploy latest releases from source environment to target environment for all projects in a space"""
@@ -170,12 +166,16 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
         # Apply exclusion if provided
         if exclude:
             for exclude_pattern in exclude:
-                projects = [p for p in projects if exclude_pattern.lower() not in p.get("Name", "").lower()]
+                projects = [
+                    p for p in projects if exclude_pattern.lower() not in p.get("Name", "").lower()
+                ]
 
         # Report filtering results
         if filter and exclude:
             exclude_list = "', '".join(exclude)
-            click.echo(f"Found {len(projects)} projects matching filter '{filter}' and excluding '{exclude_list}'")
+            click.echo(
+                f"Found {len(projects)} projects matching filter '{filter}' and excluding '{exclude_list}'"
+            )
         elif filter:
             click.echo(f"Found {len(projects)} projects matching filter '{filter}'")
         elif exclude:
@@ -209,58 +209,68 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
                 )
 
                 if not source_release:
-                    results.append({
-                        "Project": project_name,
-                        f"{source_environment.title()} Version": "N/A",
-                        f"{target_environment.title()} Version": "N/A",
-                        "Action": "Skipped"
-                    })
+                    results.append(
+                        {
+                            "Project": project_name,
+                            f"{source_environment.title()} Version": "N/A",
+                            f"{target_environment.title()} Version": "N/A",
+                            "Action": "Skipped",
+                        }
+                    )
                     continue
 
-                source_version = source_release['Version']
+                source_version = source_release["Version"]
 
                 # Get the latest release from target environment
                 target_release = client.get_latest_release_in_environment(
                     space_obj["Id"], project["Id"], target_environment
                 )
 
-                target_version = target_release['Version'] if target_release else "N/A"
+                target_version = target_release["Version"] if target_release else "N/A"
 
                 # Check if versions match
                 if target_release and source_version == target_version:
-                    results.append({
-                        "Project": project_name,
-                        f"{source_environment.title()} Version": source_version,
-                        f"{target_environment.title()} Version": target_version,
-                        "Action": "Already deployed"
-                    })
-                    continue
-
-                if dry_run:
-                    results.append({
-                        "Project": project_name,
-                        f"{source_environment.title()} Version": source_version,
-                        f"{target_environment.title()} Version": target_version,
-                        "Action": "Would deploy"
-                    })
-                else:
-                    try:
-                        deployment = client.deploy_release(
-                            space_obj["Id"], source_release["Id"], target_env["Id"]
-                        )
-                        results.append({
-                            "Project": project_name,
-                            f"{source_environment.title()} Version": source_version,
-                            f"{target_environment.title()} Version": source_version,
-                            "Action": "Deployed"
-                        })
-                    except Exception as e:
-                        results.append({
+                    results.append(
+                        {
                             "Project": project_name,
                             f"{source_environment.title()} Version": source_version,
                             f"{target_environment.title()} Version": target_version,
-                            "Action": f"Failed: {e!s}"
-                        })
+                            "Action": "Already deployed",
+                        }
+                    )
+                    continue
+
+                if dry_run:
+                    results.append(
+                        {
+                            "Project": project_name,
+                            f"{source_environment.title()} Version": source_version,
+                            f"{target_environment.title()} Version": target_version,
+                            "Action": "Would deploy",
+                        }
+                    )
+                else:
+                    try:
+                        client.deploy_release(
+                            space_obj["Id"], source_release["Id"], target_env["Id"]
+                        )
+                        results.append(
+                            {
+                                "Project": project_name,
+                                f"{source_environment.title()} Version": source_version,
+                                f"{target_environment.title()} Version": source_version,
+                                "Action": "Deployed",
+                            }
+                        )
+                    except Exception as e:
+                        results.append(
+                            {
+                                "Project": project_name,
+                                f"{source_environment.title()} Version": source_version,
+                                f"{target_environment.title()} Version": target_version,
+                                "Action": f"Failed: {e!s}",
+                            }
+                        )
 
         # Print results table
         if results:
@@ -274,9 +284,13 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
             skipped_count = len([r for r in results if r["Action"] == "Skipped"])
 
             if dry_run:
-                click.echo(f"\n📊 Summary: {would_deploy_count} would be deployed, {already_deployed_count} already deployed, {skipped_count} skipped, {failed_count} failed")
+                click.echo(
+                    f"\n📊 Summary: {would_deploy_count} would be deployed, {already_deployed_count} already deployed, {skipped_count} skipped, {failed_count} failed"
+                )
             else:
-                click.echo(f"\n📊 Summary: {deployed_count} deployed, {already_deployed_count} already deployed, {skipped_count} skipped, {failed_count} failed")
+                click.echo(
+                    f"\n📊 Summary: {deployed_count} deployed, {already_deployed_count} already deployed, {skipped_count} skipped, {failed_count} failed"
+                )
         else:
             click.echo("No projects to process")
 

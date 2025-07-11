@@ -30,9 +30,7 @@ class OctopusClient:
         with open(config_file) as f:
             return json.load(f)
 
-    def _make_request(
-        self, endpoint: str, method: str = "GET", data: dict | None = None
-    ) -> dict:
+    def _make_request(self, endpoint: str, method: str = "GET", data: dict | None = None) -> dict:
         url = f"{self.base_url}/api{endpoint}"
         if method == "GET":
             response = self.session.get(url)
@@ -120,10 +118,6 @@ class OctopusClient:
 
         return None
 
-    def deploy_release(
-        self, space_id: str, release_id: str, environment_id: str
-    ) -> dict:
+    def deploy_release(self, space_id: str, release_id: str, environment_id: str) -> dict:
         deployment_data = {"ReleaseId": release_id, "EnvironmentId": environment_id}
-        return self._make_request(
-            f"/{space_id}/deployments", method="POST", data=deployment_data
-        )
+        return self._make_request(f"/{space_id}/deployments", method="POST", data=deployment_data)

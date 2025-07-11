@@ -1,4 +1,5 @@
 """Tests for the OctopusClient API."""
+
 import json
 from unittest.mock import Mock, mock_open, patch
 
@@ -7,14 +8,15 @@ import requests
 
 from src.octopus import OctopusClient
 
+OCTOPUS_BASE_URL = "https://octopus.example.com"
+API_KEY = "API-TESTKEY123"
+CONFIG_PATH = "/home/user/.config/octopus/cli_config.json"
+
 
 @pytest.fixture
 def mock_config():
     """Mock configuration data."""
-    return {
-        "url": "https://octopus.example.com",
-        "apikey": "API-TESTKEY123"
-    }
+    return {"url": OCTOPUS_BASE_URL, "apikey": API_KEY}
 
 
 @pytest.fixture
@@ -37,7 +39,7 @@ def mock_session():
 @pytest.fixture
 def client(mock_config_file, mock_session):
     """Create OctopusClient instance with mocked session."""
-    with patch('requests.Session', return_value=mock_session):
+    with patch("requests.Session", return_value=mock_session):
         return OctopusClient(config_path=mock_config_file)
 
 
@@ -46,25 +48,26 @@ class TestOctopusClientInitialization:
 
     def test_init_with_valid_config(self, mock_config_file, mock_session):
         """Test successful initialization with valid config."""
-        with patch('requests.Session', return_value=mock_session):
+        with patch("requests.Session", return_value=mock_session):
             client = OctopusClient(config_path=mock_config_file)
 
-        assert client.base_url == "https://octopus.example.com"
-        assert client.api_key == "API-TESTKEY123"
-        mock_session.headers.update.assert_called_once_with({
-            "X-Octopus-ApiKey": "API-TESTKEY123",
-            "Content-Type": "application/json"
-        })
+        assert client.base_url == OCTOPUS_BASE_URL
+        assert client.api_key == API_KEY
+        mock_session.headers.update.assert_called_once_with(
+            {"X-Octopus-ApiKey": API_KEY, "Content-Type": "application/json"}
+        )
 
     def test_init_with_default_config_path(self, mock_session):
         """Test initialization with default config path."""
         mock_config_data = {"url": "https://test.com", "apikey": "test-key"}
 
-        with patch('os.path.expanduser', return_value="/home/user/.config/octopus/cli_config.json"):
-            with patch('builtins.open', mock_open(read_data=json.dumps(mock_config_data))):
-                with patch('pathlib.Path.exists', return_value=True):
-                    with patch('requests.Session', return_value=mock_session):
-                        client = OctopusClient()
+        with (
+            patch("os.path.expanduser", return_value=CONFIG_PATH),
+            patch("builtins.open", mock_open(read_data=json.dumps(mock_config_data))),
+            patch("pathlib.Path.exists", return_value=True),
+            patch("requests.Session", return_value=mock_session),
+        ):
+            client = OctopusClient()
 
         assert client.base_url == "https://test.com"
         assert client.api_key == "test-key"
@@ -75,10 +78,10 @@ class TestOctopusClientInitialization:
         config_file = tmp_path / "config.json"
         config_file.write_text(json.dumps(config))
 
-        with patch('requests.Session', return_value=mock_session):
+        with patch("requests.Session", return_value=mock_session):
             client = OctopusClient(config_path=str(config_file))
 
-        assert client.base_url == "https://octopus.example.com"
+        assert client.base_url == OCTOPUS_BASE_URL
 
     def test_init_with_missing_config_file(self):
         """Test initialization fails with missing config file."""
@@ -96,7 +99,7 @@ class TestOctopusClientInitialization:
 
     def test_init_with_missing_api_key(self, tmp_path):
         """Test initialization fails with missing API key in config."""
-        config = {"url": "https://octopus.example.com"}
+        config = {"url": OCTOPUS_BASE_URL}
         config_file = tmp_path / "config.json"
         config_file.write_text(json.dumps(config))
 
@@ -124,9 +127,7 @@ class TestApiRequestMethods:
 
         result = client._make_request("/test-endpoint")
 
-        client.session.get.assert_called_once_with(
-            "https://octopus.example.com/api/test-endpoint"
-        )
+        client.session.get.assert_called_once_with("https://octopus.example.com/api/test-endpoint")
         mock_response.raise_for_status.assert_called_once()
         assert result == {"result": "success"}
 
@@ -140,8 +141,7 @@ class TestApiRequestMethods:
         result = client._make_request("/projects", method="POST", data=data)
 
         client.session.post.assert_called_once_with(
-            "https://octopus.example.com/api/projects",
-            json=data
+            "https://octopus.example.com/api/projects", json=data
         )
         mock_response.raise_for_status.assert_called_once()
         assert result == {"created": True}
@@ -163,10 +163,7 @@ class TestApiRequestMethods:
     def test_get_all_pages_single_page(self, client):
         """Test pagination with single page."""
         mock_response = Mock()
-        mock_response.json.return_value = {
-            "Items": [{"Id": "1"}, {"Id": "2"}],
-            "TotalResults": 2
-        }
+        mock_response.json.return_value = {"Items": [{"Id": "1"}, {"Id": "2"}], "TotalResults": 2}
         client.session.get.return_value = mock_response
 
         result = client._get_all_pages("/projects")
@@ -214,7 +211,7 @@ class TestSpaceRelatedMethods:
         """Test getting all spaces."""
         mock_spaces = [
             {"Id": "Spaces-1", "Name": "Default"},
-            {"Id": "Spaces-2", "Name": "Development"}
+            {"Id": "Spaces-2", "Name": "Development"},
         ]
         mock_response = Mock()
         mock_response.json.return_value = {"Items": mock_spaces}
@@ -223,18 +220,16 @@ class TestSpaceRelatedMethods:
         result = client.get_spaces()
 
         assert result == mock_spaces
-        client.session.get.assert_called_once_with(
-            "https://octopus.example.com/api/spaces"
-        )
+        client.session.get.assert_called_once_with("https://octopus.example.com/api/spaces")
 
     def test_get_space_by_name_found(self, client):
         """Test finding space by name (case-insensitive)."""
         mock_spaces = [
             {"Id": "Spaces-1", "Name": "Default"},
-            {"Id": "Spaces-2", "Name": "Development"}
+            {"Id": "Spaces-2", "Name": "Development"},
         ]
 
-        with patch.object(client, 'get_spaces', return_value=mock_spaces):
+        with patch.object(client, "get_spaces", return_value=mock_spaces):
             # Test exact match
             result = client.get_space_by_name("Default")
             assert result == {"Id": "Spaces-1", "Name": "Default"}
@@ -247,7 +242,7 @@ class TestSpaceRelatedMethods:
         """Test space not found by name."""
         mock_spaces = [{"Id": "Spaces-1", "Name": "Default"}]
 
-        with patch.object(client, 'get_spaces', return_value=mock_spaces):
+        with patch.object(client, "get_spaces", return_value=mock_spaces):
             result = client.get_space_by_name("NonExistent")
             assert result is None
 
@@ -257,12 +252,9 @@ class TestProjectRelatedMethods:
 
     def test_get_projects(self, client):
         """Test getting all projects in a space."""
-        mock_projects = [
-            {"Id": "Projects-1", "Name": "API"},
-            {"Id": "Projects-2", "Name": "Web"}
-        ]
+        mock_projects = [{"Id": "Projects-1", "Name": "API"}, {"Id": "Projects-2", "Name": "Web"}]
 
-        with patch.object(client, '_get_all_pages', return_value=mock_projects) as mock_get_all:
+        with patch.object(client, "_get_all_pages", return_value=mock_projects) as mock_get_all:
             result = client.get_projects("Spaces-1")
 
         assert result == mock_projects
@@ -272,10 +264,10 @@ class TestProjectRelatedMethods:
         """Test finding project by name (case-insensitive)."""
         mock_projects = [
             {"Id": "Projects-1", "Name": "API Service"},
-            {"Id": "Projects-2", "Name": "Web App"}
+            {"Id": "Projects-2", "Name": "Web App"},
         ]
 
-        with patch.object(client, 'get_projects', return_value=mock_projects):
+        with patch.object(client, "get_projects", return_value=mock_projects):
             # Test exact match
             result = client.get_project_by_name("Spaces-1", "API Service")
             assert result == {"Id": "Projects-1", "Name": "API Service"}
@@ -288,7 +280,7 @@ class TestProjectRelatedMethods:
         """Test project not found by name."""
         mock_projects = [{"Id": "Projects-1", "Name": "API"}]
 
-        with patch.object(client, 'get_projects', return_value=mock_projects):
+        with patch.object(client, "get_projects", return_value=mock_projects):
             result = client.get_project_by_name("Spaces-1", "NonExistent")
             assert result is None
 
@@ -300,7 +292,7 @@ class TestReleaseAndDeploymentMethods:
         """Test getting releases for a project."""
         mock_releases = [
             {"Id": "Releases-1", "Version": "1.0.0"},
-            {"Id": "Releases-2", "Version": "1.0.1"}
+            {"Id": "Releases-2", "Version": "1.0.1"},
         ]
         mock_response = Mock()
         mock_response.json.return_value = {"Items": mock_releases}
@@ -317,7 +309,7 @@ class TestReleaseAndDeploymentMethods:
         """Test getting environments for a space."""
         mock_environments = [
             {"Id": "Environments-1", "Name": "Development"},
-            {"Id": "Environments-2", "Name": "Staging"}
+            {"Id": "Environments-2", "Name": "Staging"},
         ]
         mock_response = Mock()
         mock_response.json.return_value = {"Items": mock_environments}
@@ -334,11 +326,9 @@ class TestReleaseAndDeploymentMethods:
         """Test getting latest release deployed to an environment."""
         mock_releases = [
             {"Id": "Releases-1", "Version": "1.0.1"},
-            {"Id": "Releases-2", "Version": "1.0.0"}
+            {"Id": "Releases-2", "Version": "1.0.0"},
         ]
-        mock_deployments = [
-            {"Id": "Deployments-1", "EnvironmentId": "Environments-1"}
-        ]
+        mock_deployments = [{"Id": "Deployments-1", "EnvironmentId": "Environments-1"}]
         mock_environment = {"Id": "Environments-1", "Name": "Staging"}
 
         # Mock the API calls
@@ -348,7 +338,7 @@ class TestReleaseAndDeploymentMethods:
             # Second call: get deployments for first release
             {"Items": mock_deployments},
             # Third call: get environment details
-            mock_environment
+            mock_environment,
         ]
 
         mock_response = Mock()
@@ -366,11 +356,7 @@ class TestReleaseAndDeploymentMethods:
         mock_deployments = [{"Id": "Deployments-1", "EnvironmentId": "Environments-2"}]
         mock_environment = {"Id": "Environments-2", "Name": "Production"}
 
-        mock_responses = [
-            {"Items": mock_releases},
-            {"Items": mock_deployments},
-            mock_environment
-        ]
+        mock_responses = [{"Items": mock_releases}, {"Items": mock_deployments}, mock_environment]
 
         mock_response = Mock()
         mock_response.json.side_effect = mock_responses
@@ -392,10 +378,7 @@ class TestReleaseAndDeploymentMethods:
         assert result == mock_deployment
         client.session.post.assert_called_once_with(
             "https://octopus.example.com/api/Spaces-1/deployments",
-            json={
-                "ReleaseId": "Releases-1",
-                "EnvironmentId": "Environments-1"
-            }
+            json={"ReleaseId": "Releases-1", "EnvironmentId": "Environments-1"},
         )
 
 
@@ -406,7 +389,7 @@ class TestEdgeCasesAndErrorHandling:
         """Test handling empty space name."""
         mock_spaces = [{"Id": "Spaces-1", "Name": "Default"}]
 
-        with patch.object(client, 'get_spaces', return_value=mock_spaces):
+        with patch.object(client, "get_spaces", return_value=mock_spaces):
             result = client.get_space_by_name("")
             assert result is None
 
@@ -414,10 +397,10 @@ class TestEdgeCasesAndErrorHandling:
         """Test handling project without Name field."""
         mock_projects = [
             {"Id": "Projects-1"},  # Missing Name field
-            {"Id": "Projects-2", "Name": "Web App"}
+            {"Id": "Projects-2", "Name": "Web App"},
         ]
 
-        with patch.object(client, 'get_projects', return_value=mock_projects):
+        with patch.object(client, "get_projects", return_value=mock_projects):
             result = client.get_project_by_name("Spaces-1", "Web App")
             assert result == {"Id": "Projects-2", "Name": "Web App"}
 
