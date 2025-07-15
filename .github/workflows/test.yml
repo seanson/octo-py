@@ -43,9 +43,6 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-interaction --no-root --with dev
 
-      - name: Install project
-        run: poetry install --no-interaction
-
       - name: Run tests
         run: |
           poetry run pytest -v --cov=src --cov-report=term-missing --cov-report=xml
@@ -89,13 +86,6 @@ jobs:
 
       - name: Install dependencies
         run: poetry install --no-interaction --no-root --with dev
-
-      - name: Install project
-        run: poetry install --no-interaction
-
-      - name: Add ruff to dev dependencies
-        run: |
-          poetry add --group dev ruff
 
       - name: Run ruff linter
         run: poetry run ruff check src tests
