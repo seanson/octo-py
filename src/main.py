@@ -274,7 +274,10 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
 
         # Print results table
         if results:
-            click.echo("\n" + tabulate(results, headers="keys", tablefmt="grid"))
+            # Filter out skipped items from the table display
+            filtered_results = [r for r in results if r["Action"] != "Skipped"]
+            if filtered_results:
+                click.echo("\n" + tabulate(filtered_results, headers="keys", tablefmt="grid"))
 
             # Summary statistics
             deployed_count = len([r for r in results if r["Action"] == "Deployed"])
