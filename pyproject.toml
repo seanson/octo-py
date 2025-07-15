@@ -3,6 +3,7 @@ package-mode = false
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.12.2"
+pytest = "^8.4.1"
 
 [project]
 name = "octo-py"
