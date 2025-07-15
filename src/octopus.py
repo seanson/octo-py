@@ -125,7 +125,9 @@ class OctopusClient:
         except requests.exceptions.HTTPError:
             return None
 
-    def get_releases_between_versions(self, space_id: str, project_id: str, from_version: str, to_version: str) -> list[dict]:
+    def get_releases_between_versions(
+        self, space_id: str, project_id: str, from_version: str, to_version: str
+    ) -> list[dict]:
         """Get all releases between two versions (inclusive of to_version, exclusive of from_version)."""
         releases = self.get_releases(space_id, project_id)
 
@@ -151,9 +153,11 @@ class OctopusClient:
         if from_index > to_index:  # from_version is newer than to_version
             return []  # No releases to deploy
 
-        return releases[start_idx:end_idx + 1]
+        return releases[start_idx : end_idx + 1]
 
-    def get_changelog_between_versions(self, space_id: str, project_id: str, from_version: str, to_version: str) -> str:
+    def get_changelog_between_versions(
+        self, space_id: str, project_id: str, from_version: str, to_version: str
+    ) -> str:
         """Get aggregated changelog between two versions."""
         # Get all releases for the project
         all_releases = self.get_releases(space_id, project_id)
@@ -176,16 +180,20 @@ class OctopusClient:
                     else:
                         changelog_parts.append(f"**{version}**\n_No release notes available_")
 
-        return "\n\n".join(changelog_parts) if changelog_parts else "_No changelog information available_"
+        return (
+            "\n\n".join(changelog_parts)
+            if changelog_parts
+            else "_No changelog information available_"
+        )
 
     def _version_is_between(self, from_version: str, check_version: str, to_version: str) -> bool:
         """Simple version comparison - check if check_version is between from_version and to_version."""
         # For semantic versions like 0.0.4 and 0.0.11, we need proper comparison
         try:
             # Split versions into parts for comparison
-            from_parts = [int(x) for x in from_version.split('.')]
-            check_parts = [int(x) for x in check_version.split('.')]
-            to_parts = [int(x) for x in to_version.split('.')]
+            from_parts = [int(x) for x in from_version.split(".")]
+            check_parts = [int(x) for x in check_version.split(".")]
+            to_parts = [int(x) for x in to_version.split(".")]
 
             # Pad with zeros to make them the same length
             max_len = max(len(from_parts), len(check_parts), len(to_parts))
