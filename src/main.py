@@ -1,3 +1,5 @@
+import re
+
 import click
 from tabulate import tabulate
 from tqdm import tqdm
@@ -142,8 +144,26 @@ def promote(ctx, space_name, project_name):
 @click.option(
     "--dry-run", is_flag=True, help="Show what would be deployed without actually deploying"
 )
+@click.option(
+    "--tabulate-format",
+    default="grid",
+    help="Table format for output (e.g., grid, simple, plain, pipe, html)",
+)
+@click.option(
+    "--tabulate-output", help="Filename to write tabulate output to instead of printing to console"
+)
 @click.pass_context
-def deploy_all(ctx, source_environment, target_environment, space, filter, exclude, dry_run):
+def deploy_all(
+    ctx,
+    source_environment,
+    target_environment,
+    space,
+    filter,
+    exclude,
+    dry_run,
+    tabulate_format,
+    tabulate_output,
+):
     """Deploy latest releases from source environment to target environment for all projects in a space"""
     client = ctx.obj["client"]
     try:
@@ -209,14 +229,14 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
                 )
 
                 if not source_release:
-                    results.append(
-                        {
-                            "Project": project_name,
-                            f"{source_environment.title()} Version": "N/A",
-                            f"{target_environment.title()} Version": "N/A",
-                            "Action": "Skipped",
-                        }
-                    )
+                    result_entry = {
+                        "Project": project_name,
+                        f"{source_environment.title()} Version": "N/A",
+                        f"{target_environment.title()} Version": "N/A",
+                        "Action": "Skipped",
+                    }
+                    result_entry["Changelog"] = "_No source release found_"
+                    results.append(result_entry)
                     continue
 
                 source_version = source_release["Version"]
@@ -230,54 +250,95 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
 
                 # Check if versions match
                 if target_release and source_version == target_version:
-                    results.append(
-                        {
-                            "Project": project_name,
-                            f"{source_environment.title()} Version": source_version,
-                            f"{target_environment.title()} Version": target_version,
-                            "Action": "Already deployed",
-                        }
-                    )
+                    result_entry = {
+                        "Project": project_name,
+                        f"{source_environment.title()} Version": source_version,
+                        f"{target_environment.title()} Version": target_version,
+                        "Action": "Already deployed",
+                    }
+                    result_entry["Changelog"] = "_Already deployed - no changes_"
+                    results.append(result_entry)
                     continue
 
                 if dry_run:
-                    results.append(
-                        {
-                            "Project": project_name,
-                            f"{source_environment.title()} Version": source_version,
-                            f"{target_environment.title()} Version": target_version,
-                            "Action": "Would deploy",
-                        }
-                    )
+                    # Get changelog for version differences
+                    changelog = ""
+                    if target_version != "N/A":
+                        changelog = client.get_changelog_between_versions(
+                            space_obj["Id"], project["Id"], target_version, source_version
+                        )
+                    else:
+                        # No target version, get release notes for just the source version
+                        source_details = client.get_release_details(
+                            space_obj["Id"], source_release["Id"]
+                        )
+                        if source_details and source_details.get("ReleaseNotes"):
+                            changelog = f"**{source_version}**\n{source_details['ReleaseNotes']}"
+                        else:
+                            changelog = f"**{source_version}**\n_No release notes available_"
+
+                    result_entry = {
+                        "Project": project_name,
+                        f"{source_environment.title()} Version": source_version,
+                        f"{target_environment.title()} Version": target_version,
+                        "Action": "Would deploy",
+                    }
+
+                    # Add changelog to the table in dry-run mode
+                    if changelog:
+                        # Only replace newlines with spaces to prevent table breaking
+                        replace_newline = "<br>" if tabulate_format in ["github"] else " "
+                        sanitized_changelog = re.sub(r"\n+", replace_newline, changelog)
+                        result_entry["Changelog"] = sanitized_changelog
+                    else:
+                        result_entry["Changelog"] = "_No changelog available_"
+
+                    results.append(result_entry)
                 else:
                     try:
                         client.deploy_release(
                             space_obj["Id"], source_release["Id"], target_env["Id"]
                         )
-                        results.append(
-                            {
-                                "Project": project_name,
-                                f"{source_environment.title()} Version": source_version,
-                                f"{target_environment.title()} Version": source_version,
-                                "Action": "Deployed",
-                            }
-                        )
+                        result_entry = {
+                            "Project": project_name,
+                            f"{source_environment.title()} Version": source_version,
+                            f"{target_environment.title()} Version": source_version,
+                            "Action": "Deployed",
+                        }
+                        # No changelog for actual deployments
+                        results.append(result_entry)
                     except Exception as e:
-                        results.append(
-                            {
-                                "Project": project_name,
-                                f"{source_environment.title()} Version": source_version,
-                                f"{target_environment.title()} Version": target_version,
-                                "Action": f"Failed: {e!s}",
-                            }
-                        )
+                        result_entry = {
+                            "Project": project_name,
+                            f"{source_environment.title()} Version": source_version,
+                            f"{target_environment.title()} Version": target_version,
+                            "Action": f"Failed: {e!s}",
+                        }
+                        # No changelog for failed deployments
+                        results.append(result_entry)
 
         # Print results table
         if results:
-            # Filter out skipped items from the table display
-            filtered_results = [r for r in results if r["Action"] != "Skipped"]
+            # Filter out skipped items from the table display and sort alphabetically by project name
+            filtered_columns = ["Action"]
+            filtered_results = [
+                {k: v for k, v in r.items() if k not in filtered_columns}
+                for r in results
+                if r["Action"] != "Skipped"
+            ]
+            filtered_results.sort(key=lambda x: x["Project"].lower())
+
             if filtered_results:
-                click.echo("\n" + tabulate(filtered_results, headers="keys", tablefmt="grid"))
+                table_output = tabulate(filtered_results, headers="keys", tablefmt=tabulate_format)
+
+                if tabulate_output:
+                    # Write to file
+                    with open(tabulate_output, "w") as f:
+                        f.write(table_output)
+                    click.echo(f"\nTable output written to: {tabulate_output}")
+                else:
+                    # Print to console
+                    click.echo("\n" + table_output)
 
             # Summary statistics
             deployed_count = len([r for r in results if r["Action"] == "Deployed"])
@@ -299,6 +360,7 @@ def deploy_all(ctx, source_environment, target_environment, space, filter, exclu
 
     except Exception as e:
         click.echo(f"Error in bulk promotion: {e}", err=True)
+        raise
         ctx.exit(1)
 
 

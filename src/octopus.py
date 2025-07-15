@@ -118,6 +118,87 @@ class OctopusClient:
 
         return None
 
+    def get_release_details(self, space_id: str, release_id: str) -> dict | None:
+        """Get detailed information for a specific release including release notes."""
+        try:
+            return self._make_request(f"/{space_id}/releases/{release_id}")
+        except requests.exceptions.HTTPError:
+            return None
+
+    def get_releases_between_versions(self, space_id: str, project_id: str, from_version: str, to_version: str) -> list[dict]:
+        """Get all releases between two versions (inclusive of to_version, exclusive of from_version)."""
+        releases = self.get_releases(space_id, project_id)
+
+        # Find the indices of the versions
+        from_index = None
+        to_index = None
+
+        for i, release in enumerate(releases):
+            if release["Version"] == from_version:
+                from_index = i
+            if release["Version"] == to_version:
+                to_index = i
+
+        # If we can't find the versions, return empty list
+        if from_index is None or to_index is None:
+            return []
+
+        # Get releases between versions (excluding from_version, including to_version)
+        # Note: releases are typically ordered newest first, so we need to handle the slice correctly
+        start_idx = min(to_index, from_index)
+        end_idx = max(to_index, from_index)
+
+        if from_index > to_index:  # from_version is newer than to_version
+            return []  # No releases to deploy
+
+        return releases[start_idx:end_idx + 1]
+
+    def get_changelog_between_versions(self, space_id: str, project_id: str, from_version: str, to_version: str) -> str:
+        """Get aggregated changelog between two versions."""
+        # Get all releases for the project
+        all_releases = self.get_releases(space_id, project_id)
+
+        # Find releases between versions using semantic version comparison
+        changelog_parts = []
+
+        for release in all_releases:
+            version = release["Version"]
+            # Include releases that are newer than from_version and up to to_version
+            if self._version_is_between(from_version, version, to_version):
+                release_details = self.get_release_details(space_id, release["Id"])
+                if release_details:
+                    version = release_details.get("Version", "Unknown")
+                    release_notes = release_details.get("ReleaseNotes") or ""
+                    release_notes = release_notes.strip() if release_notes else ""
+
+                    if release_notes:
+                        changelog_parts.append(f"**{version}**\n{release_notes}")
+                    else:
+                        changelog_parts.append(f"**{version}**\n_No release notes available_")
+
+        return "\n\n".join(changelog_parts) if changelog_parts else "_No changelog information available_"
+
+    def _version_is_between(self, from_version: str, check_version: str, to_version: str) -> bool:
+        """Simple version comparison - check if check_version is between from_version and to_version."""
+        # For semantic versions like 0.0.4 and 0.0.11, we need proper comparison
+        try:
+            # Split versions into parts for comparison
+            from_parts = [int(x) for x in from_version.split('.')]
+            check_parts = [int(x) for x in check_version.split('.')]
+            to_parts = [int(x) for x in to_version.split('.')]
+
+            # Pad with zeros to make them the same length
+            max_len = max(len(from_parts), len(check_parts), len(to_parts))
+            from_parts += [0] * (max_len - len(from_parts))
+            check_parts += [0] * (max_len - len(check_parts))
+            to_parts += [0] * (max_len - len(to_parts))
+
+            # Check if check_version > from_version and check_version <= to_version
+            return from_parts < check_parts <= to_parts
+        except (ValueError, AttributeError):
+            # Fallback to string comparison if version parsing fails
+            return from_version < check_version <= to_version
+
     def deploy_release(self, space_id: str, release_id: str, environment_id: str) -> dict:
         deployment_data = {"ReleaseId": release_id, "EnvironmentId": environment_id}
         return self._make_request(f"/{space_id}/deployments", method="POST", data=deployment_data)
