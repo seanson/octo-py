@@ -107,6 +107,7 @@ class OctopusClient:
             deployments_data = self._make_request(
                 f"/{space_id}/releases/{release['Id']}/deployments"
             )
+
             deployments = deployments_data.get("Items", [])
 
             for deployment in deployments:

@@ -321,10 +321,11 @@ def deploy_all(
         if results:
             # Filter out skipped items from the table display and sort alphabetically by project name
             filtered_columns = ["Action"]
+            skipped_actions = ["Skipped", "Already deployed"]
             filtered_results = [
                 {k: v for k, v in r.items() if k not in filtered_columns}
                 for r in results
-                if r["Action"] != "Skipped"
+                if r["Action"] not in skipped_actions
             ]
             filtered_results.sort(key=lambda x: x["Project"].lower())
 
