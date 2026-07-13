@@ -74,6 +74,8 @@ source = ["src"]
 
 [tool.coverage.report]
 show_missing = true
-# Regression floor, not a target: current total is ~26% (main.py CLI is untested).
-# Ratchet this upward as coverage improves.
-fail_under = 25
+exclude_also = [
+    'if __name__ == .__main__.:',
+]
+# Regression floor, not a target. Ratchet upward as coverage improves.
+fail_under = 85
