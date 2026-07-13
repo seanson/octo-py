@@ -21,31 +21,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
+          enable-cache: true
 
       - name: Install dependencies
-        run: poetry install --no-interaction --no-root --with dev
+        run: uv sync --locked --python ${{ matrix.python-version }}
 
       - name: Run tests
-        run: |
-          poetry run pytest -v --cov=src --cov-report=term-missing --cov-report=xml
+        run: uv run pytest -v --cov=src --cov-report=term-missing --cov-report=xml
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest'
@@ -65,30 +50,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.13"
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-3.13-${{ hashFiles('**/poetry.lock') }}
+          enable-cache: true
 
       - name: Install dependencies
-        run: poetry install --no-interaction --no-root --with dev
+        run: uv sync --locked
 
       - name: Run ruff linter
-        run: poetry run ruff check src tests
+        run: uv run ruff check src tests
 
       - name: Run ruff formatter check
-        run: poetry run ruff format --check src tests
+        run: uv run ruff format --check src tests

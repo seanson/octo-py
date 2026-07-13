@@ -10,39 +10,39 @@ help: ## Show this help message
 
 # Installation targets
 install: ## Install production dependencies
-	poetry install
+	uv sync --no-dev
 
 install-dev: ## Install all dependencies including dev dependencies
-	poetry install --with dev
+	uv sync
 
 # Testing targets
 test: ## Run all tests
-	poetry run pytest -v
+	uv run pytest -v
 
 test-cov: ## Run tests with coverage report
-	poetry run pytest -v --cov=src --cov-report=term-missing --cov-report=html
+	uv run pytest -v --cov=src --cov-report=term-missing --cov-report=html
 
 test-watch: ## Run tests in watch mode (requires pytest-watch)
-	poetry run ptw
+	uv run ptw
 
 test-unit: ## Run only unit tests
-	poetry run pytest -v tests/test_octopus.py
+	uv run pytest -v tests/test_octopus.py
 
 test-specific: ## Run specific test (use TEST=TestClassName or TEST=test_function_name)
-	poetry run pytest -v -k "$(TEST)"
+	uv run pytest -v -k "$(TEST)"
 
 # Code quality targets
 lint: ## Run linting checks with ruff
-	poetry run ruff check src tests
+	uv run ruff check src tests
 
 format: ## Format code with ruff
-	poetry run ruff format src tests
+	uv run ruff format src tests
 
 format-check: ## Check code formatting without making changes
-	poetry run ruff format --check src tests
+	uv run ruff format --check src tests
 
 lint-fix: ## Auto-fix linting issues with ruff
-	poetry run ruff check --fix src tests
+	uv run ruff check --fix src tests
 
 # Cleaning targets
 clean: ## Clean up cache and build files

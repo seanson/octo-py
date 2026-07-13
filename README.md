@@ -11,7 +11,7 @@ A Python command-line interface for interacting with Octopus Deploy servers. Thi
 ### Prerequisites
 
 - Python 3.13 or higher
-- Poetry (for dependency management)
+- [uv](https://docs.astral.sh/uv/) (for dependency management)
 
 ### Setup
 
@@ -25,7 +25,7 @@ cd octo-py
 2. Install dependencies:
 
 ```bash
-poetry install
+uv sync
 ```
 
 3. Create configuration file:
@@ -48,7 +48,7 @@ Create `~/.config/octopus/cli_config.json` with your Octopus Deploy server detai
 Run the CLI using:
 
 ```bash
-poetry run python src/main.py [COMMAND] [OPTIONS]
+uv run python src/main.py [COMMAND] [OPTIONS]
 ```
 
 ### Available Commands
@@ -58,7 +58,7 @@ poetry run python src/main.py [COMMAND] [OPTIONS]
 List all spaces in your Octopus Deploy server.
 
 ```bash
-poetry run python src/main.py spaces
+uv run python src/main.py spaces
 ```
 
 **Output:**
@@ -73,13 +73,13 @@ Spaces-2: Development Space
 List all projects in a specific space.
 
 ```bash
-poetry run python src/main.py projects <space_id>
+uv run python src/main.py projects <space_id>
 ```
 
 **Example:**
 
 ```bash
-poetry run python src/main.py projects Spaces-1
+uv run python src/main.py projects Spaces-1
 ```
 
 #### `releases`
@@ -87,13 +87,13 @@ poetry run python src/main.py projects Spaces-1
 List all releases for a specific project in a space.
 
 ```bash
-poetry run python src/main.py releases <space_id> <project_id>
+uv run python src/main.py releases <space_id> <project_id>
 ```
 
 **Example:**
 
 ```bash
-poetry run python src/main.py releases Spaces-1 Projects-1
+uv run python src/main.py releases Spaces-1 Projects-1
 ```
 
 #### `latest-release`
@@ -101,7 +101,7 @@ poetry run python src/main.py releases Spaces-1 Projects-1
 Get the latest release deployed to a specific environment.
 
 ```bash
-poetry run python src/main.py latest-release <space_id> <project_id> [--environment <env_name>]
+uv run python src/main.py latest-release <space_id> <project_id> [--environment <env_name>]
 ```
 
 **Options:**
@@ -111,7 +111,7 @@ poetry run python src/main.py latest-release <space_id> <project_id> [--environm
 **Example:**
 
 ```bash
-poetry run python src/main.py latest-release Spaces-1 Projects-1 --environment production
+uv run python src/main.py latest-release Spaces-1 Projects-1 --environment production
 ```
 
 #### `promote`
@@ -119,13 +119,13 @@ poetry run python src/main.py latest-release Spaces-1 Projects-1 --environment p
 Promote the latest staging release to QA environment.
 
 ```bash
-poetry run python src/main.py promote <space_name> <project_name>
+uv run python src/main.py promote <space_name> <project_name>
 ```
 
 **Example:**
 
 ```bash
-poetry run python src/main.py promote "Default Space" "MyApp"
+uv run python src/main.py promote "Default Space" "MyApp"
 ```
 
 #### `deploy-all`
@@ -133,7 +133,7 @@ poetry run python src/main.py promote "Default Space" "MyApp"
 Deploy latest releases from one environment to another for all projects in a space.
 
 ```bash
-poetry run python src/main.py deploy-all <source_environment> <target_environment> --space <space_name> [OPTIONS]
+uv run python src/main.py deploy-all <source_environment> <target_environment> --space <space_name> [OPTIONS]
 ```
 
 **Required Arguments:**
@@ -156,25 +156,25 @@ poetry run python src/main.py deploy-all <source_environment> <target_environmen
 Deploy all projects from staging to production:
 
 ```bash
-poetry run python src/main.py deploy-all staging production --space "Default Space"
+uv run python src/main.py deploy-all staging production --space "Default Space"
 ```
 
 Deploy with filtering:
 
 ```bash
-poetry run python src/main.py deploy-all staging production --space "Default Space" --filter "api"
+uv run python src/main.py deploy-all staging production --space "Default Space" --filter "api"
 ```
 
 Deploy with multiple exclusions:
 
 ```bash
-poetry run python src/main.py deploy-all staging production --space "Default Space" --exclude "test" --exclude "legacy" --exclude "deprecated"
+uv run python src/main.py deploy-all staging production --space "Default Space" --exclude "test" --exclude "legacy" --exclude "deprecated"
 ```
 
 Dry run to see what would be deployed:
 
 ```bash
-poetry run python src/main.py deploy-all staging production --space "Default Space" --dry-run
+uv run python src/main.py deploy-all staging production --space "Default Space" --dry-run
 ```
 
 **Output:**
@@ -249,22 +249,22 @@ The CLI provides clear error messages for common issues:
 
 To set up for development:
 
-1. Install Poetry if you haven't already:
+1. Install uv if you haven't already:
 
 ```bash
-curl -sSL https://install.python-poetry.org | python3 -
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 2. Install dependencies including development dependencies:
 
 ```bash
-poetry install --with dev
+uv sync
 ```
 
 3. Run the CLI:
 
 ```bash
-poetry run python src/main.py --help
+uv run python src/main.py --help
 ```
 
 ### Testing
@@ -347,13 +347,13 @@ The test suite includes:
 Run a specific test class:
 
 ```bash
-poetry run pytest tests/test_octopus.py::TestOctopusClientInitialization
+uv run pytest tests/test_octopus.py::TestOctopusClientInitialization
 ```
 
 Run a specific test:
 
 ```bash
-poetry run pytest tests/test_octopus.py::TestOctopusClientInitialization::test_init_with_valid_config
+uv run pytest tests/test_octopus.py::TestOctopusClientInitialization::test_init_with_valid_config
 ```
 
 ### License
