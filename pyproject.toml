@@ -20,6 +20,10 @@ dev = [
     "pytest>=8.4.1,<9.0.0",
     "pytest-cov>=6.2.1,<7.0.0",
     "pytest-mock>=3.14.1,<4.0.0",
+    "mypy>=1.11,<2.0",
+    "types-requests",
+    "types-tabulate",
+    "types-tqdm",
 ]
 
 [tool.uv]
@@ -55,3 +59,21 @@ known-first-party = ["src"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"] # Allow assert in tests
+
+[tool.mypy]
+python_version = "3.13"
+files = ["src"]
+warn_redundant_casts = true
+warn_unused_ignores = true
+# The code passes mypy's default checks today. To ratchet toward strict,
+# enable disallow_untyped_defs / disallow_any_generics and resolve the
+# resulting type-arg (bare `dict`) and no-untyped-def findings (mostly main.py).
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.coverage.report]
+show_missing = true
+# Regression floor, not a target: current total is ~26% (main.py CLI is untested).
+# Ratchet this upward as coverage improves.
+fail_under = 25
