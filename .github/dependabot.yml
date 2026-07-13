@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # Keep GitHub Actions used in workflows up to date. Python dependency
+  # security updates are handled separately via repo-level Dependabot
+  # security updates (no manifest entry required).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
