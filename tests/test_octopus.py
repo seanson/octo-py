@@ -1,6 +1,7 @@
 """Tests for the OctopusClient API."""
 
 import json
+from typing import ClassVar
 from unittest.mock import Mock, mock_open, patch
 
 import pytest
@@ -417,3 +418,126 @@ class TestEdgeCasesAndErrorHandling:
         assert result == [{"Id": "1"}, {"Id": "2"}]
         # Should only make one request when TotalResults is missing/0
         assert client.session.get.call_count == 1
+
+
+class TestGetReleaseDetails:
+    """Test get_release_details and its HTTP error handling."""
+
+    def test_returns_release_details(self, client):
+        details = {"Id": "Releases-1", "Version": "2.1.0", "ReleaseNotes": "Notes"}
+        mock_response = Mock()
+        mock_response.json.return_value = details
+        client.session.get.return_value = mock_response
+
+        result = client.get_release_details("Spaces-1", "Releases-1")
+
+        assert result == details
+        client.session.get.assert_called_once_with(
+            "https://octopus.example.com/api/Spaces-1/releases/Releases-1"
+        )
+
+    def test_returns_none_on_http_error(self, client):
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404")
+        client.session.get.return_value = mock_response
+
+        result = client.get_release_details("Spaces-1", "Missing")
+
+        assert result is None
+
+
+class TestGetReleasesBetweenVersions:
+    """Test get_releases_between_versions slicing logic."""
+
+    RELEASES: ClassVar[list[dict]] = [
+        {"Id": "R1", "Version": "1.0.0"},
+        {"Id": "R2", "Version": "1.0.1"},
+        {"Id": "R3", "Version": "1.0.2"},
+    ]
+
+    def test_returns_inclusive_slice(self, client):
+        with patch.object(client, "get_releases", return_value=self.RELEASES):
+            result = client.get_releases_between_versions("S1", "P1", "1.0.0", "1.0.2")
+        assert result == self.RELEASES
+
+    def test_returns_empty_when_from_newer_than_to(self, client):
+        with patch.object(client, "get_releases", return_value=self.RELEASES):
+            result = client.get_releases_between_versions("S1", "P1", "1.0.2", "1.0.0")
+        assert result == []
+
+    def test_returns_empty_when_from_version_missing(self, client):
+        with patch.object(client, "get_releases", return_value=self.RELEASES):
+            result = client.get_releases_between_versions("S1", "P1", "9.9.9", "1.0.2")
+        assert result == []
+
+    def test_returns_empty_when_to_version_missing(self, client):
+        with patch.object(client, "get_releases", return_value=self.RELEASES):
+            result = client.get_releases_between_versions("S1", "P1", "1.0.0", "9.9.9")
+        assert result == []
+
+
+class TestGetChangelogBetweenVersions:
+    """Test get_changelog_between_versions aggregation."""
+
+    def test_aggregates_release_notes(self, client):
+        releases = [
+            {"Id": "R1", "Version": "1.0.0"},  # == from_version, excluded
+            {"Id": "R2", "Version": "1.0.1"},  # has notes
+            {"Id": "R3", "Version": "1.0.2"},  # details unavailable, skipped
+        ]
+        details = {"R2": {"Version": "1.0.1", "ReleaseNotes": "  Fixed login  "}}
+
+        with (
+            patch.object(client, "get_releases", return_value=releases),
+            patch.object(
+                client, "get_release_details", side_effect=lambda _s, rid: details.get(rid)
+            ),
+        ):
+            result = client.get_changelog_between_versions("S1", "P1", "1.0.0", "1.0.2")
+
+        assert "**1.0.1**\nFixed login" in result  # stripped
+        assert "1.0.0" not in result  # from_version is excluded
+        assert "1.0.2" not in result  # skipped when details are None
+
+    def test_uses_placeholder_when_no_release_notes(self, client):
+        releases = [{"Id": "R1", "Version": "1.0.0"}, {"Id": "R2", "Version": "1.0.1"}]
+        details = {"R2": {"Version": "1.0.1", "ReleaseNotes": ""}}
+
+        with (
+            patch.object(client, "get_releases", return_value=releases),
+            patch.object(
+                client, "get_release_details", side_effect=lambda _s, rid: details.get(rid)
+            ),
+        ):
+            result = client.get_changelog_between_versions("S1", "P1", "1.0.0", "1.0.1")
+
+        assert "**1.0.1**\n_No release notes available_" in result
+
+    def test_returns_placeholder_when_nothing_in_range(self, client):
+        releases = [{"Id": "R1", "Version": "1.0.0"}]
+        with patch.object(client, "get_releases", return_value=releases):
+            result = client.get_changelog_between_versions("S1", "P1", "1.0.0", "1.0.0")
+        assert result == "_No changelog information available_"
+
+
+class TestVersionIsBetween:
+    """Test the _version_is_between comparison helper."""
+
+    def test_numeric_in_range(self, client):
+        assert client._version_is_between("1.0.0", "1.0.1", "1.0.2") is True
+
+    def test_numeric_out_of_range(self, client):
+        assert client._version_is_between("1.0.0", "2.0.0", "1.5.0") is False
+
+    def test_lower_bound_is_exclusive(self, client):
+        assert client._version_is_between("1.0.0", "1.0.0", "1.0.2") is False
+
+    def test_upper_bound_is_inclusive(self, client):
+        assert client._version_is_between("1.0.0", "1.0.2", "1.0.2") is True
+
+    def test_versions_of_differing_length_are_padded(self, client):
+        assert client._version_is_between("1.0", "1.0.1", "1.1") is True
+
+    def test_non_numeric_falls_back_to_string_comparison(self, client):
+        assert client._version_is_between("a", "b", "c") is True
+        assert client._version_is_between("a", "z", "c") is False

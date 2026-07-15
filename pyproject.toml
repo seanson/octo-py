@@ -78,4 +78,5 @@ exclude_also = [
     'if __name__ == .__main__.:',
 ]
 # Regression floor, not a target. Ratchet upward as coverage improves.
-fail_under = 85
+# Both modules are at 100%; this floor leaves slack for the odd new line.
+fail_under = 95
