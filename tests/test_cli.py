@@ -417,9 +417,10 @@ class TestDeployAllCommand:
                 contents = f.read()
         assert "API" in contents
 
-    def test_unexpected_error_reports_and_raises(self, runner, mock_client):
+    def test_unexpected_error_reports_and_exits_cleanly(self, runner, mock_client):
         mock_client.get_space_by_name.side_effect = RuntimeError("kaboom")
         result = runner.invoke(cli, ["deploy-all", "staging", "production", "--space", "Default"])
         assert result.exit_code == 1
         assert "Error in bulk promotion: kaboom" in result.stderr
-        assert isinstance(result.exception, RuntimeError)
+        # Exits cleanly with code 1 instead of propagating the raw traceback.
+        assert not isinstance(result.exception, RuntimeError)
