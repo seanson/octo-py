@@ -361,7 +361,6 @@ def deploy_all(
 
     except Exception as e:
         click.echo(f"Error in bulk promotion: {e}", err=True)
-        raise
         ctx.exit(1)
 
 
